@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>担当者やり取りメモ</title>
+    <!-- PWA用マニフェスト等（実際の公開時は manifest.json などの設定を足すとよりアプリらしくなります） -->
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .attachment-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 0.5rem;
+            object-fit: contain;
+            background-color: #e5e7eb;
+            margin-top: 0.5rem;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-upload-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            background-color: #f3f4f6;
+            color: #374151;
+            border-radius: 0.375rem;
+            border: 1px solid #d1d5db;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background-color 0.2s;
+        }
+        .file-upload-btn:active {
+            background-color: #e5e7eb;
+        }
+        /* スクロールバーの非表示（見た目をスッキリさせるため） */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <!-- ヘッダー -->
+    <header class="bg-blue-600 text-white p-4 sticky top-0 z-50 shadow-md flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <!-- 戻るボタン（詳細画面のみ表示） -->
+            <button id="backBtn" class="hidden p-2 -ml-2 rounded-full hover:bg-blue-700 transition" onclick="app.showList()">
+                <i data-lucide="chevron-left"></i>
+            </button>
+            <h1 id="headerTitle" class="text-xl font-bold truncate max-w-[200px]">担当者一覧</h1>
+        </div>
+        <!-- 新規追加ボタン（リスト画面のみ表示） -->
+        <button id="addPersonBtn" class="p-2 -mr-2 rounded-full hover:bg-blue-700 transition" onclick="app.openPersonModal()">
+            <i data-lucide="user-plus"></i>
+        </button>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="p-4 max-w-lg mx-auto">
+        
+        <!-- === ページ1: 担当者リスト画面 === -->
+        <div id="listPage" class="page active space-y-4">
+            
+            <!-- 検索バー -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i data-lucide="search" class="text-gray-400 w-5 h-5"></i>
+                </div>
+                <input type="text" id="searchInput" class="w-full border border-gray-300 rounded-xl pl-10 pr-3 py-3 text-base focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" placeholder="検索 (名前・会社名)" oninput="app.renderPersonList()">
+            </div>
+
+            <!-- リスト本体 -->
+            <div id="personList" class="flex flex-col gap-3">
+                <!-- 担当者カードがここに挿入されます -->
+            </div>
+            <!-- 該当なしメッセージ（バグ修正箇所） -->
+            <div class="text-center text-gray-500 py-10 hidden" id="emptyListMessage">
+                担当者が見つかりません。
+            </div>
+        </div>
+
+        <!-- === ページ2: やり取り詳細（タイムライン）画面 === -->
+        <div id="detailPage" class="page">
+            <!-- 担当者情報ヘッダ -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h2 id="detailName" class="text-xl font-bold text-gray-800"></h2>
+                    <div class="flex gap-2">
+                        <!-- 編集ボタン -->
+                        <button class="text-blue-500 bg-blue-50 p-1.5 rounded-lg hover:bg-blue-100" onclick="app.editCurrentPerson()" title="編集">
+                            <i data-lucide="edit-2" class="w-4 h-4"></i>
+                        </button>
+                        <!-- 削除ボタン -->
+                        <button class="text-red-500 bg-red-50 p-1.5 rounded-lg hover:bg-red-100" onclick="app.deleteCurrentPerson()" title="削除">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <p id="detailCompany" class="text-sm text-gray-600 mb-2"></p>
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <p class="text-xs text-gray-500 font-semibold mb-1">基本メモ</p>
+                    <p id="detailMemo" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
+                </div>
+            </div>
+
+            <!-- 新規やり取り入力フォーム -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <i data-lucide="message-square-plus" class="w-4 h-4"></i> 記録を追加
+                </h3>
+                <textarea id="logText" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-3 min-h-[80px]" placeholder="やり取りの内容を入力..."></textarea>
+                
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label for="logFile" class="file-upload-btn">
+                            <i data-lucide="paperclip" class="w-4 h-4 mr-2"></i> 写真/ファイル
+                        </label>
+                        <input type="file" id="logFile" accept="image/*,application/pdf" onchange="app.handleFileSelect(event)">
+                        <div id="selectedFileName" class="text-xs text-gray-500 mt-1 truncate max-w-[150px]"></div>
+                    </div>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition shadow-sm" onclick="app.addLog()">
+                        記録する
+                    </button>
+                </div>
+            </div>
+
+            <!-- タイムライン -->
+            <h3 class="text-sm font-bold text-gray-500 mb-4 ml-1 flex items-center gap-1">
+                <i data-lucide="history" class="w-4 h-4"></i> やり取り履歴
+            </h3>
+            <div class="relative pl-4 border-l-2 border-blue-200 ml-4 space-y-6" id="timelineList">
+                <!-- タイムラインアイテムがここに生成されます -->
+            </div>
+        </div>
+    </main>
+
+    <!-- === 各種モーダル（ポップアップ画面） === -->
+
+    <!-- モーダル: 担当者の追加・編集 -->
+    <div id="personModal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl transform transition-all">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-lg text-gray-800" id="modalTitle">担当者の追加</h3>
+                <button class="text-gray-400 hover:text-gray-600 p-1" onclick="app.closeModal('personModal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="personId">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">お名前 <span class="text-red-500">*</span></label>
+                    <input type="text" id="personName" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例: 山田 太郎">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">会社名 / 組織名</label>
+                    <input type="text" id="personCompany" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例: 株式会社〇〇">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">基本メモ</label>
+                    <textarea id="personMemo" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none h-24" placeholder="役職や特徴など"></textarea>
+                </div>
+                <div class="pt-2 flex gap-3">
+                    <button class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-bold" onclick="app.closeModal('personModal')">キャンセル</button>
+                    <button class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md" onclick="app.savePerson()">保存する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル: 記録テキストの編集 -->
+    <div id="logEditModal" class="fixed inset-0 bg-black bg-opacity-50 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl transform transition-all">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <h3 class="font-bold text-lg text-gray-800">記録テキストの編集</h3>
+                <button class="text-gray-400 hover:text-gray-600 p-1" onclick="app.closeModal('logEditModal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="editLogId">
+                <textarea id="editLogText" class="w-full border border-gray-300 rounded-lg p-3 text-base focus:ring-2 focus:ring-blue-500 outline-none min-h-[120px]"></textarea>
+                <div class="pt-2 flex gap-3">
+                    <button class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl font-bold" onclick="app.closeModal('logEditModal')">キャンセル</button>
+                    <button class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md" onclick="app.saveLogEdit()">更新する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル: 画像拡大 -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-90 z-[110] hidden flex flex-col items-center justify-center p-4" onclick="app.closeModal('imageModal')">
+        <button class="absolute top-4 right-4 text-white p-2 bg-black bg-opacity-50 rounded-full">
+            <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+        <img id="fullSizeImage" src="" alt="拡大画像" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl">
+    </div>
+
+    <!-- カスタム Alert モーダル -->
+    <div id="alertModal" class="fixed inset-0 bg-black bg-opacity-50 z-[120] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center shadow-2xl">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
+                <i data-lucide="info" class="h-6 w-6 text-blue-600"></i>
+            </div>
+            <p id="alertMessage" class="text-gray-800 font-medium mb-6 whitespace-pre-wrap"></p>
+            <button class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold" onclick="UI.closeAlert()">OK</button>
+        </div>
+    </div>
+
+    <!-- カスタム Confirm モーダル -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 z-[120] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center shadow-2xl">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <i data-lucide="alert-triangle" class="h-6 w-6 text-red-600"></i>
+            </div>
+            <p id="confirmMessage" class="text-gray-800 font-medium mb-6 whitespace-pre-wrap"></p>
+            <div class="flex gap-3">
+                <button class="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-bold" onclick="UI.closeConfirm(false)">キャンセル</button>
+                <button class="flex-1 bg-red-600 text-white py-2 rounded-lg font-bold" onclick="UI.closeConfirm(true)">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- アプリケーション・ロジック -->
+    <script>
+        // --- 独自ダイアログ制御 ---
+        const UI = {
+            confirmCallback: null,
+            showAlert(msg) {
+                document.getElementById('alertMessage').textContent = msg;
+                document.getElementById('alertModal').classList.remove('hidden');
+            },
+            closeAlert() {
+                document.getElementById('alertModal').classList.add('hidden');
+            },
+            showConfirm(msg, callback) {
+                document.getElementById('confirmMessage').textContent = msg;
+                document.getElementById('confirmModal').classList.remove('hidden');
+                this.confirmCallback = callback;
+            },
+            closeConfirm(result) {
+                document.getElementById('confirmModal').classList.add('hidden');
+                if (result && this.confirmCallback) {
+                    this.confirmCallback();
+                }
+                this.confirmCallback = null;
+            }
+        };
+
+        // --- データベース (IndexedDB) 管理クラス ---
+        class DBManager {
+            constructor() {
+                this.dbName = 'DeaiAppDB';
+                this.dbVersion = 1;
+                this.db = null;
+            }
+
+            async init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('persons')) {
+                            const personStore = db.createObjectStore('persons', { keyPath: 'id' });
+                            personStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                        }
+                        if (!db.objectStoreNames.contains('logs')) {
+                            const logStore = db.createObjectStore('logs', { keyPath: 'id' });
+                            logStore.createIndex('personId', 'personId', { unique: false });
+                            logStore.createIndex('createdAt', 'createdAt', { unique: false });
+                        }
+                    };
+
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        resolve();
+                    };
+                    request.onerror = (event) => reject(event.target.errorCode);
+                });
+            }
+
+            // --- 担当者 ---
+            async savePerson(person) {
+                return new Promise((resolve, reject) => {
+                    person.updatedAt = Date.now();
+                    const tx = this.db.transaction(['persons'], 'readwrite');
+                    const store = tx.objectStore('persons');
+                    const req = store.put(person);
+                    req.onsuccess = () => resolve(person);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async getAllPersons() {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction(['persons'], 'readonly');
+                    const store = tx.objectStore('persons');
+                    const index = store.index('updatedAt');
+                    const req = index.getAll();
+                    req.onsuccess = () => resolve(req.result.reverse());
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async getPerson(id) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction(['persons'], 'readonly');
+                    const store = tx.objectStore('persons');
+                    const req = store.get(id);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async deletePerson(id) {
+                return new Promise(async (resolve, reject) => {
+                    try {
+                        // 関連するログも全て削除する
+                        const logs = await this.getLogsByPersonId(id);
+                        const tx = this.db.transaction(['persons', 'logs'], 'readwrite');
+                        const pStore = tx.objectStore('persons');
+                        const lStore = tx.objectStore('logs');
+                        
+                        pStore.delete(id);
+                        logs.forEach(log => lStore.delete(log.id));
+                        
+                        tx.oncomplete = () => resolve();
+                        tx.onerror = () => reject(tx.error);
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+            }
+
+            // --- ログ（やり取り記録） ---
+            async saveLog(log) {
+                return new Promise((resolve, reject) => {
+                    if (!log.createdAt) log.createdAt = Date.now();
+                    const tx = this.db.transaction(['logs'], 'readwrite');
+                    const store = tx.objectStore('logs');
+                    const req = store.put(log);
+                    req.onsuccess = () => {
+                        // 担当者の更新日時を上げる
+                        this.getPerson(log.personId).then(person => {
+                            if(person) {
+                                person.updatedAt = Date.now();
+                                this.savePerson(person);
+                            }
+                        });
+                        resolve(log);
+                    };
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async getLog(id) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction(['logs'], 'readonly');
+                    const store = tx.objectStore('logs');
+                    const req = store.get(id);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async getLogsByPersonId(personId) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction(['logs'], 'readonly');
+                    const store = tx.objectStore('logs');
+                    const index = store.index('personId');
+                    const req = index.getAll(personId);
+                    req.onsuccess = () => {
+                        // 最新順
+                        const logs = req.result.sort((a, b) => b.createdAt - a.createdAt);
+                        resolve(logs);
+                    };
+                    req.onerror = () => reject(req.error);
+                });
+            }
+
+            async deleteLog(logId) {
+                return new Promise((resolve, reject) => {
+                    const tx = this.db.transaction(['logs'], 'readwrite');
+                    const store = tx.objectStore('logs');
+                    const req = store.delete(logId);
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error);
+                });
+            }
+        }
+
+        // --- メインアプリケーション管理 ---
+        class App {
+            constructor() {
+                this.db = new DBManager();
+                this.currentPersonId = null;
+                this.selectedFile = null; 
+                this.allPersonsCache = []; // 検索用にキャッシュ
+                
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.db.init();
+                    lucide.createIcons();
+                    await this.loadAllPersons();
+                } catch (e) {
+                    UI.showAlert("データベースの初期化に失敗しました。プライベートブラウズモード等では正常に保存できない可能性があります。");
+                }
+            }
+
+            generateId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+
+            formatDate(timestamp) {
+                const d = new Date(timestamp);
+                return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            }
+
+            // --- 画面切り替え ---
+            async showList() {
+                document.getElementById('detailPage').classList.remove('active');
+                document.getElementById('listPage').classList.add('active');
+                document.getElementById('backBtn').classList.add('hidden');
+                document.getElementById('addPersonBtn').classList.remove('hidden');
+                document.getElementById('headerTitle').textContent = '担当者一覧';
+                this.currentPersonId = null;
+                
+                await this.loadAllPersons();
+            }
+
+            async showDetail(personId) {
+                this.currentPersonId = personId;
+                const person = await this.db.getPerson(personId);
+                if (!person) return;
+
+                document.getElementById('listPage').classList.remove('active');
+                document.getElementById('detailPage').classList.add('active');
+                document.getElementById('backBtn').classList.remove('hidden');
+                document.getElementById('addPersonBtn').classList.add('hidden');
+                document.getElementById('headerTitle').textContent = 'やり取り詳細';
+
+                document.getElementById('detailName').textContent = person.name;
+                document.getElementById('detailCompany').textContent = person.company || '（会社名未登録）';
+                document.getElementById('detailMemo').textContent = person.memo || 'メモはありません';
+
+                document.getElementById('logText').value = '';
+                this.clearFileSelection();
+
+                this.renderLogs();
+            }
+
+            // --- モーダル制御 ---
+            openPersonModal(person = null) {
+                document.getElementById('personModal').classList.remove('hidden');
+                if (person) {
+                    document.getElementById('modalTitle').textContent = '担当者情報の編集';
+                    document.getElementById('personId').value = person.id;
+                    document.getElementById('personName').value = person.name;
+                    document.getElementById('personCompany').value = person.company || '';
+                    document.getElementById('personMemo').value = person.memo || '';
+                } else {
+                    document.getElementById('modalTitle').textContent = '担当者の追加';
+                    document.getElementById('personId').value = '';
+                    document.getElementById('personName').value = '';
+                    document.getElementById('personCompany').value = '';
+                    document.getElementById('personMemo').value = '';
+                }
+            }
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.add('hidden');
+            }
+
+            // --- 担当者管理 ---
+            async loadAllPersons() {
+                this.allPersonsCache = await this.db.getAllPersons();
+                this.renderPersonList();
+            }
+
+            renderPersonList() {
+                const listEl = document.getElementById('personList');
+                const emptyMsg = document.getElementById('emptyListMessage');
+                const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+                // リストの中身をクリア
+                listEl.innerHTML = '';
+                
+                // 検索フィルター
+                const filtered = this.allPersonsCache.filter(p => {
+                    const name = p.name ? p.name.toLowerCase() : '';
+                    const company = p.company ? p.company.toLowerCase() : '';
+                    return name.includes(query) || company.includes(query);
+                });
+
+                // バグ修正箇所: emptyMsgを削除しないように、非表示の切り替えのみ行う
+                if (filtered.length === 0) {
+                    emptyMsg.classList.remove('hidden');
+                    return;
+                }
+
+                emptyMsg.classList.add('hidden');
+
+                filtered.forEach(person => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-xl shadow-sm border border-gray-200 active:bg-gray-50 cursor-pointer flex items-center justify-between transition-colors';
+                    card.onclick = () => this.showDetail(person.id);
+                    
+                    const dateStr = person.updatedAt ? this.formatDate(person.updatedAt).split(' ')[0] : '-';
+
+                    card.innerHTML = `
+                        <div class="overflow-hidden flex-1 pr-2">
+                            <h3 class="font-bold text-lg text-gray-800 truncate">${person.name}</h3>
+                            <p class="text-sm text-gray-500 truncate">${person.company || '会社名なし'}</p>
+                        </div>
+                        <div class="text-xs text-gray-400 text-right flex-shrink-0">
+                            更新<br>${dateStr}
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+            }
+
+            async savePerson() {
+                const idInput = document.getElementById('personId').value;
+                const name = document.getElementById('personName').value.trim();
+                const company = document.getElementById('personCompany').value.trim();
+                const memo = document.getElementById('personMemo').value.trim();
+
+                if (!name) {
+                    UI.showAlert('お名前を入力してください。');
+                    return;
+                }
+
+                const person = {
+                    id: idInput || this.generateId(),
+                    name: name,
+                    company: company,
+                    memo: memo
+                };
+
+                await this.db.savePerson(person);
+                this.closeModal('personModal');
+                
+                if (this.currentPersonId) {
+                    this.showDetail(this.currentPersonId);
+                } else {
+                    await this.loadAllPersons();
+                }
+            }
+
+            async editCurrentPerson() {
+                if(!this.currentPersonId) return;
+                const person = await this.db.getPerson(this.currentPersonId);
+                this.openPersonModal(person);
+            }
+
+            deleteCurrentPerson() {
+                if(!this.currentPersonId) return;
+                UI.showConfirm("この担当者と、すべてのやり取り記録を削除します。\nよろしいですか？", async () => {
+                    await this.db.deletePerson(this.currentPersonId);
+                    this.showList();
+                });
+            }
+
+            // --- 記録（ログ）管理 ---
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // 容量制限アラート (約5MB)
+                const sizeMB = file.size / (1024 * 1024);
+                if(sizeMB > 5) {
+                    UI.showAlert("ファイルサイズが大きすぎます。\n5MB以下のファイルを選択してください。");
+                    this.clearFileSelection();
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.selectedFile = {
+                        name: file.name,
+                        type: file.type,
+                        dataUrl: e.target.result // Base64エンコード
+                    };
+                    document.getElementById('selectedFileName').textContent = file.name;
+                    document.getElementById('selectedFileName').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            clearFileSelection() {
+                document.getElementById('logFile').value = '';
+                this.selectedFile = null;
+                document.getElementById('selectedFileName').textContent = '';
+                document.getElementById('selectedFileName').classList.add('hidden');
+            }
+
+            async addLog() {
+                if (!this.currentPersonId) return;
+
+                const text = document.getElementById('logText').value.trim();
+                
+                if (!text && !this.selectedFile) {
+                    UI.showAlert('メモを入力するか、ファイルを選択してください。');
+                    return;
+                }
+
+                const log = {
+                    id: this.generateId(),
+                    personId: this.currentPersonId,
+                    text: text,
+                    file: this.selectedFile
+                };
+
+                const btn = event.currentTarget;
+                const originalText = btn.textContent;
+                btn.textContent = '保存中...';
+                btn.disabled = true;
+
+                try {
+                    await this.db.saveLog(log);
+                    document.getElementById('logText').value = '';
+                    this.clearFileSelection();
+                    this.renderLogs();
+                } catch(e) {
+                    UI.showAlert('保存に失敗しました。端末の容量が不足している可能性があります。');
+                } finally {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            }
+
+            async renderLogs() {
+                if (!this.currentPersonId) return;
+
+                const timelineEl = document.getElementById('timelineList');
+                const logs = await this.db.getLogsByPersonId(this.currentPersonId);
+
+                timelineEl.innerHTML = '';
+
+                if (logs.length === 0) {
+                    timelineEl.innerHTML = '<p class="text-gray-400 text-sm italic py-2">まだ記録がありません。</p>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const item = document.createElement('div');
+                    item.className = 'relative';
+
+                    // タイムラインの丸
+                    const dot = document.createElement('div');
+                    dot.className = 'absolute -left-[25px] mt-1.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm';
+                    
+                    const content = document.createElement('div');
+                    content.className = 'bg-white p-3 rounded-lg shadow-sm border border-gray-100';
+
+                    // ログのヘッダー部
+                    const header = document.createElement('div');
+                    header.className = 'flex justify-between items-start mb-2';
+                    
+                    const dateTxt = document.createElement('div');
+                    dateTxt.className = 'text-xs text-blue-600 font-bold';
+                    dateTxt.textContent = this.formatDate(log.createdAt);
+                    
+                    const actions = document.createElement('div');
+                    actions.className = 'flex gap-2';
+                    actions.innerHTML = `
+                        <button class="text-gray-400 hover:text-blue-500" onclick="app.openLogEditModal('${log.id}')" title="編集">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button class="text-gray-400 hover:text-red-500" onclick="app.deleteLog('${log.id}')" title="削除">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    `;
+
+                    header.appendChild(dateTxt);
+                    header.appendChild(actions);
+
+                    // テキスト部
+                    const textBody = document.createElement('p');
+                    textBody.className = 'text-gray-700 text-sm whitespace-pre-wrap';
+                    textBody.textContent = log.text;
+
+                    content.appendChild(header);
+                    if (log.text) content.appendChild(textBody);
+
+                    // ファイル添付部
+                    if (log.file) {
+                        if (log.file.type.startsWith('image/')) {
+                            const img = document.createElement('img');
+                            img.src = log.file.dataUrl;
+                            img.className = 'attachment-preview mt-2 cursor-pointer shadow-sm';
+                            img.onclick = () => {
+                                document.getElementById('fullSizeImage').src = log.file.dataUrl;
+                                document.getElementById('imageModal').classList.remove('hidden');
+                            };
+                            content.appendChild(img);
+                        } else {
+                            const fileLink = document.createElement('a');
+                            fileLink.href = log.file.dataUrl;
+                            fileLink.download = log.file.name;
+                            fileLink.className = 'inline-flex items-center gap-1 mt-2 text-sm text-blue-600 bg-blue-50 px-2 py-1.5 rounded border border-blue-100 hover:bg-blue-100 transition';
+                            fileLink.innerHTML = `<i data-lucide="download" class="w-4 h-4"></i> ${log.file.name}`;
+                            content.appendChild(fileLink);
+                        }
+                    }
+
+                    item.appendChild(dot);
+                    item.appendChild(content);
+                    timelineEl.appendChild(item);
+                });
+
+                lucide.createIcons();
+            }
+
+            async openLogEditModal(logId) {
+                const log = await this.db.getLog(logId);
+                if (!log) return;
+                document.getElementById('editLogId').value = log.id;
+                document.getElementById('editLogText').value = log.text;
+                document.getElementById('logEditModal').classList.remove('hidden');
+            }
+
+            async saveLogEdit() {
+                const logId = document.getElementById('editLogId').value;
+                const newText = document.getElementById('editLogText').value.trim();
+                
+                const log = await this.db.getLog(logId);
+                if (log) {
+                    log.text = newText;
+                    await this.db.saveLog(log);
+                    this.closeModal('logEditModal');
+                    this.renderLogs();
+                }
+            }
+
+            deleteLog(logId) {
+                UI.showConfirm("この記録を削除します。\nよろしいですか？", async () => {
+                    await this.db.deleteLog(logId);
+                    this.renderLogs();
+                });
+            }
+        }
+
+        // アプリ起動
+        const app = new App();
+
+    </script>
+</body>
+</html>
