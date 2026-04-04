@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>担当者やり取りメモ</title>
     
+    <!-- PWA（スマホアプリ化）のためのアイコン設定 -->
     <meta name="theme-color" content="#5d4037">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -67,7 +68,7 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            touch-action: none; /* ブラウザ標準のズームを無効化してJSで制御 */
+            touch-action: none;
         }
         #fullSizeImage {
             transition: transform 0.1s ease-out;
@@ -97,6 +98,7 @@
 
     <main class="p-4 max-w-lg mx-auto">
         
+        <!-- === ページ1: 担当者リスト画面 === -->
         <div id="listPage" class="page active space-y-4">
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -127,6 +129,7 @@
             </div>
         </div>
 
+        <!-- === ページ2: やり取り詳細画面 === -->
         <div id="detailPage" class="page">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-stone-200 mb-4">
                 <div class="flex justify-between items-start mb-2">
@@ -147,6 +150,7 @@
                 </div>
             </div>
 
+            <!-- 新規記録入力 -->
             <div class="bg-stone-200/50 p-4 rounded-xl border border-stone-200 mb-6">
                 <textarea id="logText" class="w-full border border-stone-300 rounded-lg p-4 text-lg focus:ring-2 focus:ring-amber-800/30 outline-none mb-3 min-h-[120px]" placeholder="内容を入力..."></textarea>
                 <div class="flex items-center justify-between">
@@ -161,10 +165,12 @@
                 </div>
             </div>
 
+            <!-- タイムライン -->
             <div class="relative pl-5 border-l-2 border-stone-200 ml-4 space-y-8" id="timelineList"></div>
         </div>
     </main>
 
+    <!-- モーダル: 担当者追加/編集 -->
     <div id="personModal" class="fixed inset-0 bg-stone-900/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
             <div class="p-4 border-b border-stone-100 flex justify-between items-center bg-stone-50">
@@ -190,6 +196,25 @@
         </div>
     </div>
 
+    <!-- モーダル: 記録の編集 -->
+    <div id="editLogModal" class="fixed inset-0 bg-stone-900/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div class="p-4 border-b border-stone-100 flex justify-between items-center bg-stone-50">
+                <h3 class="font-bold text-stone-800 text-lg">記録を修正</h3>
+                <button class="text-stone-400 p-1" onclick="app.closeModal('editLogModal')"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="editLogId">
+                <div>
+                    <label class="block text-sm font-bold text-stone-400 mb-1">内容</label>
+                    <textarea id="editLogText" class="w-full border border-stone-300 rounded-lg p-4 text-lg outline-none focus:ring-2 focus:ring-amber-800/30 h-48" placeholder="内容を入力..."></textarea>
+                </div>
+                <button class="w-full bg-app-accent text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition" onclick="app.saveEditedLog()">上書き保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル: 画像拡大 -->
     <div id="imageModal" class="fixed inset-0 bg-stone-950/98 z-[200] hidden flex flex-col p-4">
         <div class="flex justify-end p-2">
             <button class="text-white bg-white/20 p-3 rounded-full" onclick="app.closeModal('imageModal')"><i data-lucide="x"></i></button>
@@ -199,15 +224,16 @@
         </div>
     </div>
 
+    <!-- 共通ダイアログ -->
     <div id="alertModal" class="fixed inset-0 bg-stone-900/60 z-[300] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center">
+        <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center shadow-2xl">
             <p id="alertMessage" class="text-stone-800 font-bold text-lg mb-6"></p>
             <button class="w-full bg-app-primary text-white py-3 rounded-lg font-bold text-lg" onclick="UI.closeAlert()">OK</button>
         </div>
     </div>
 
     <div id="confirmModal" class="fixed inset-0 bg-stone-900/60 z-[300] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center">
+        <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center shadow-2xl">
             <p id="confirmMessage" class="text-stone-800 font-bold text-lg mb-6"></p>
             <div class="flex gap-3">
                 <button class="flex-1 bg-stone-200 text-stone-600 py-3 rounded-lg font-bold text-lg" onclick="UI.closeConfirm(false)">戻る</button>
@@ -285,6 +311,11 @@
                 tx.objectStore('logs').put(log);
                 return new Promise(resolve => tx.oncomplete = () => resolve(log));
             }
+            async getLog(logId) {
+                const tx = this.db.transaction(['logs'], 'readonly');
+                const req = tx.objectStore('logs').get(logId);
+                return new Promise(resolve => req.onsuccess = () => resolve(req.result));
+            }
             async getLogsByPersonId(personId) {
                 const tx = this.db.transaction(['logs'], 'readonly');
                 const req = tx.objectStore('logs').index('personId').getAll(personId);
@@ -303,7 +334,6 @@
             }
         }
 
-        // アプリケーション
         class App {
             constructor() {
                 this.db = new DBManager();
@@ -429,11 +459,9 @@
                 });
             }
 
-            // 画像のリサイズ処理 (最大1280px)
             async handleFileSelect(e) {
                 const file = e.target.files[0];
                 if (!file) return;
-                
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     const img = new Image();
@@ -442,29 +470,16 @@
                         let width = img.width;
                         let height = img.height;
                         const maxSize = 1280;
-
                         if (width > height) {
-                            if (width > maxSize) {
-                                height *= maxSize / width;
-                                width = maxSize;
-                            }
+                            if (width > maxSize) { height *= maxSize / width; width = maxSize; }
                         } else {
-                            if (height > maxSize) {
-                                width *= maxSize / height;
-                                height = maxSize;
-                            }
+                            if (height > maxSize) { width *= maxSize / height; height = maxSize; }
                         }
-
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-
-                        this.selectedFile = {
-                            name: file.name,
-                            type: 'image/jpeg',
-                            dataUrl: canvas.toDataURL('image/jpeg', 0.8)
-                        };
+                        this.selectedFile = { name: file.name, type: 'image/jpeg', dataUrl: canvas.toDataURL('image/jpeg', 0.8) };
                         document.getElementById('selectedFileName').textContent = `準備完了 (${Math.round(width)}x${Math.round(height)})`;
                     };
                     img.src = ev.target.result;
@@ -492,6 +507,26 @@
                 this.renderLogs();
             }
 
+            async openEditLogModal(logId) {
+                const log = await this.db.getLog(logId);
+                if (!log) return;
+                document.getElementById('editLogId').value = log.id;
+                document.getElementById('editLogText').value = log.text || '';
+                document.getElementById('editLogModal').classList.remove('hidden');
+            }
+
+            async saveEditedLog() {
+                const id = document.getElementById('editLogId').value;
+                const text = document.getElementById('editLogText').value.trim();
+                const log = await this.db.getLog(id);
+                if (log) {
+                    log.text = text;
+                    await this.db.saveLog(log);
+                    this.closeModal('editLogModal');
+                    this.renderLogs();
+                }
+            }
+
             async renderLogs() {
                 const timelineEl = document.getElementById('timelineList');
                 const logs = await this.db.getLogsByPersonId(this.currentPersonId);
@@ -503,7 +538,10 @@
                         <div class="absolute -left-[26px] mt-2 w-3 h-3 bg-stone-300 rounded-full border-2 border-stone-50"></div>
                         <div class="flex justify-between items-start mb-2">
                             <span class="text-xs font-bold text-stone-400">${this.formatDate(log.createdAt)}</span>
-                            <button class="text-stone-300 hover:text-red-400 p-1" onclick="app.deleteLog('${log.id}')"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            <div class="flex gap-2">
+                                <button class="text-stone-300 hover:text-app-accent p-1" onclick="app.openEditLogModal('${log.id}')"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                                <button class="text-stone-300 hover:text-red-400 p-1" onclick="app.deleteLog('${log.id}')"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
                         </div>
                         ${log.text ? `<p class="text-lg text-stone-700 whitespace-pre-wrap leading-relaxed">${log.text}</p>` : ''}
                         ${log.file ? `<img src="${log.file.dataUrl}" class="attachment-preview shadow-inner cursor-pointer" onclick="app.zoomImage('${log.file.dataUrl}')">` : ''}
@@ -520,31 +558,13 @@
                 });
             }
 
-            // ピンチズームの実装
             setupPinchZoom() {
                 const container = document.getElementById('zoomContainer');
                 const img = document.getElementById('fullSizeImage');
-                let scale = 1;
-                let lastScale = 1;
-                let startDist = 0;
-
-                container.addEventListener('touchstart', (e) => {
-                    if (e.touches.length === 2) {
-                        startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                    }
-                });
-
-                container.addEventListener('touchmove', (e) => {
-                    if (e.touches.length === 2) {
-                        const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                        scale = Math.min(Math.max(1, lastScale * (dist / startDist)), 4);
-                        img.style.transform = `scale(${scale})`;
-                    }
-                });
-
-                container.addEventListener('touchend', () => {
-                    lastScale = scale;
-                });
+                let scale = 1, lastScale = 1, startDist = 0;
+                container.addEventListener('touchstart', (e) => { if (e.touches.length === 2) startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); });
+                container.addEventListener('touchmove', (e) => { if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); scale = Math.min(Math.max(1, lastScale * (dist / startDist)), 4); img.style.transform = `scale(${scale})`; } });
+                container.addEventListener('touchend', () => { lastScale = scale; });
             }
 
             zoomImage(url) {
@@ -558,26 +578,19 @@
                 const data = await this.db.getFullBackup();
                 const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `deai-app-backup-${new Date().getTime()}.json`;
-                a.click();
+                const a = document.createElement('a'); a.href = url; a.download = `deai-app-backup-${new Date().getTime()}.json`; a.click();
             }
 
             async importDataJSON(e) {
-                const file = e.target.files[0];
-                if (!file) return;
+                const file = e.target.files[0]; if (!file) return;
                 const reader = new FileReader();
                 reader.onload = async (ev) => {
                     try {
                         const { persons, logs } = JSON.parse(ev.target.result);
                         for (const p of persons) await this.db.savePerson(p);
                         for (const l of logs) await this.db.saveLog(l);
-                        UI.showAlert('復元が完了しました');
-                        this.loadAllPersons();
-                    } catch (err) {
-                        UI.showAlert('ファイルが正しくありません');
-                    }
+                        UI.showAlert('復元が完了しました'); this.loadAllPersons();
+                    } catch (err) { UI.showAlert('ファイルが正しくありません'); }
                 };
                 reader.readAsText(file);
             }
@@ -592,13 +605,9 @@
                 });
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `やり取り記録_${new Date().toLocaleDateString()}.csv`;
-                a.click();
+                const a = document.createElement('a'); a.href = url; a.download = `やり取り記録_${new Date().toLocaleDateString()}.csv`; a.click();
             }
         }
-
         const app = new App();
     </script>
 </body>
