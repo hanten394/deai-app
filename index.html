@@ -69,7 +69,7 @@
             z-index: 200;
             display: none;
             flex-direction: column;
-            touch-action: none; /* ブラウザのデフォルト操作を無効化 */
+            touch-action: none;
         }
         #zoomContainer {
             flex: 1;
@@ -81,11 +81,12 @@
             position: relative;
         }
         #fullSizeImage {
-            max-width: none;
-            max-height: none;
+            max-width: 100%;
+            max-height: 100%;
             will-change: transform;
             user-select: none;
             -webkit-user-drag: none;
+            transition: transform 0.05s linear;
         }
         /* 入力欄の文字を太くハッキリさせる */
         input, textarea {
@@ -229,7 +230,7 @@
         </div>
     </div>
 
-    <!-- モーダル: 画像拡大（強化版） -->
+    <!-- モーダル: 画像拡大（パン＆ズーム対応） -->
     <div id="zoomOverlay">
         <div class="flex justify-end p-4">
             <button class="text-white bg-white/20 p-3 rounded-full active:bg-white/40" onclick="app.closeModal('zoomOverlay')">
@@ -398,7 +399,9 @@
             }
 
             openPersonModal(person = null) {
-                document.getElementById('personModal').classList.remove('hidden');
+                const modal = document.getElementById('personModal');
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
                 if (person) {
                     document.getElementById('modalTitle').textContent = '担当者編集';
                     document.getElementById('personId').value = person.id;
@@ -414,7 +417,12 @@
                 }
             }
 
-            closeModal(id) { document.getElementById(id).style.display = 'none'; document.getElementById(id).classList.add('hidden'); }
+            closeModal(id) {
+                const el = document.getElementById(id);
+                el.style.display = 'none';
+                el.classList.add('hidden');
+                if(id === 'zoomOverlay') this.resetZoom();
+            }
 
             async loadAllPersons() {
                 this.allPersonsCache = await this.db.getAllPersons();
@@ -522,8 +530,9 @@
                 if (!log) return;
                 document.getElementById('editLogId').value = log.id;
                 document.getElementById('editLogText').value = log.text || '';
-                document.getElementById('editLogModal').style.display = 'flex';
-                document.getElementById('editLogModal').classList.remove('hidden');
+                const modal = document.getElementById('editLogModal');
+                modal.style.display = 'flex';
+                modal.classList.remove('hidden');
                 lucide.createIcons();
             }
 
@@ -572,57 +581,80 @@
 
             // 強化版ズーム＆パン機能
             initEnhancedZoom() {
-                const overlay = document.getElementById('zoomOverlay');
                 const container = document.getElementById('zoomContainer');
                 const img = document.getElementById('fullSizeImage');
                 
-                let scale = 1, lastScale = 1, startDist = 0;
-                let posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
-                let startX = 0, startY = 0;
-                let isDragging = false;
+                let state = {
+                    scale: 1,
+                    lastScale: 1,
+                    posX: 0,
+                    posY: 0,
+                    lastPosX: 0,
+                    lastPosY: 0,
+                    startX: 0,
+                    startY: 0,
+                    startDist: 0,
+                    isDragging: false
+                };
 
                 const updateTransform = () => {
-                    img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+                    img.style.transform = `translate(${state.posX}px, ${state.posY}px) scale(${state.scale})`;
                 };
 
                 container.addEventListener('touchstart', (e) => {
                     if (e.touches.length === 1) {
-                        isDragging = true;
-                        startX = e.touches[0].pageX - lastPosX;
-                        startY = e.touches[0].pageY - lastPosY;
+                        state.isDragging = true;
+                        state.startX = e.touches[0].pageX - state.lastPosX;
+                        state.startY = e.touches[0].pageY - state.lastPosY;
                     } else if (e.touches.length === 2) {
-                        isDragging = false;
-                        startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                        state.isDragging = false;
+                        state.startDist = Math.hypot(
+                            e.touches[0].pageX - e.touches[1].pageX,
+                            e.touches[0].pageY - e.touches[1].pageY
+                        );
+                        state.lastScale = state.scale;
                     }
-                });
+                }, { passive: false });
 
                 container.addEventListener('touchmove', (e) => {
-                    if (isDragging && e.touches.length === 1 && scale > 1) {
-                        posX = e.touches[0].pageX - startX;
-                        posY = e.touches[0].pageY - startY;
+                    e.preventDefault(); // デフォルトのスクロール等を防止
+
+                    if (state.isDragging && e.touches.length === 1) {
+                        // パン（移動）
+                        state.posX = e.touches[0].pageX - state.startX;
+                        state.posY = e.touches[0].pageY - state.startY;
                         updateTransform();
                     } else if (e.touches.length === 2) {
-                        const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                        scale = Math.min(Math.max(1, lastScale * (dist / startDist)), 8);
+                        // ピンチズーム
+                        const dist = Math.hypot(
+                            e.touches[0].pageX - e.touches[1].pageX,
+                            e.touches[0].pageY - e.touches[1].pageY
+                        );
+                        state.scale = Math.min(Math.max(1, state.lastScale * (dist / state.startDist)), 8);
                         updateTransform();
                     }
-                });
+                }, { passive: false });
 
                 container.addEventListener('touchend', () => {
-                    lastScale = scale;
-                    lastPosX = posX;
-                    lastPosY = posY;
-                    isDragging = false;
-                    if (scale <= 1.05) { // ほぼ等倍に戻ったら位置もリセット
-                        scale = 1; posX = 0; posY = 0;
-                        lastScale = 1; lastPosX = 0; lastPosY = 0;
-                        updateTransform();
+                    state.lastScale = state.scale;
+                    state.lastPosX = state.posX;
+                    state.lastPosY = state.posY;
+                    state.isDragging = false;
+                    
+                    // 倍率がほぼ1ならリセット
+                    if (state.scale <= 1.05) {
+                        this.resetZoom();
                     }
                 });
 
                 this.resetZoom = () => {
-                    scale = 1; posX = 0; posY = 0;
-                    lastScale = 1; lastPosX = 0; lastPosY = 0;
+                    state = {
+                        scale: 1, lastScale: 1,
+                        posX: 0, posY: 0,
+                        lastPosX: 0, lastPosY: 0,
+                        startX: 0, startY: 0,
+                        startDist: 0, isDragging: false
+                    };
                     updateTransform();
                 };
             }
@@ -633,6 +665,7 @@
                 this.resetZoom();
                 img.src = url;
                 overlay.style.display = 'flex';
+                overlay.classList.remove('hidden');
                 lucide.createIcons();
             }
 
