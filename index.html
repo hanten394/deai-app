@@ -21,9 +21,9 @@
         body {
             font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
             background-color: #f5f5f4; 
-            color: #44403c;
+            color: #1c1917; /* Stone-900: より濃い色にして視認性アップ */
             -webkit-tap-highlight-color: transparent;
-            font-size: 16px; /* 基準を16px(12pt相当)に */
+            font-size: 16px;
         }
         .page {
             display: none;
@@ -53,29 +53,44 @@
             justify-content: center;
             padding: 0.6rem 1.2rem;
             background-color: #fafaf9;
-            color: #57534e;
+            color: #44403c;
             border-radius: 0.5rem;
             border: 1px solid #d6d3d1;
             cursor: pointer;
-            font-size: 1rem; /* 16px */
+            font-size: 1rem;
+            font-weight: bold;
             transition: all 0.2s;
         }
-        /* ピンチズーム用コンテナ */
+        /* 改良版ズームコンテナ */
+        #zoomOverlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.95);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            touch-action: none; /* ブラウザのデフォルト操作を無効化 */
+        }
         #zoomContainer {
+            flex: 1;
             width: 100%;
-            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            touch-action: none;
+            position: relative;
         }
         #fullSizeImage {
-            transition: transform 0.1s ease-out;
-            transform-origin: center center;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
+            max-width: none;
+            max-height: none;
+            will-change: transform;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        /* 入力欄の文字を太くハッキリさせる */
+        input, textarea {
+            font-weight: bold !important;
+            color: #0c0a09 !important; /* Stone-950 */
         }
         /* 茶系カスタムカラー */
         .bg-app-primary { background-color: #5d4037; } 
@@ -102,28 +117,28 @@
         <div id="listPage" class="page active space-y-4">
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <i data-lucide="search" class="text-stone-400 w-5 h-5"></i>
+                    <i data-lucide="search" class="text-stone-500 w-5 h-5"></i>
                 </div>
-                <input type="text" id="searchInput" class="w-full border border-stone-300 rounded-xl pl-10 pr-3 py-4 text-lg focus:ring-2 focus:ring-amber-800/30 outline-none shadow-sm bg-white" placeholder="名前・会社名で検索" oninput="app.renderPersonList()">
+                <input type="text" id="searchInput" class="w-full border-2 border-stone-300 rounded-xl pl-10 pr-3 py-4 text-lg font-bold focus:border-amber-800 outline-none shadow-sm bg-white" placeholder="名前・会社名で検索" oninput="app.renderPersonList()">
             </div>
 
             <div id="personList" class="flex flex-col gap-3"></div>
-            <div class="text-center text-stone-400 py-10 hidden" id="emptyListMessage">担当者が見つかりません。</div>
+            <div class="text-center text-stone-500 py-10 hidden font-bold" id="emptyListMessage">担当者が見つかりません。</div>
 
-            <div class="mt-12 pt-8 border-t border-stone-200">
-                <h3 class="text-sm font-bold text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <div class="mt-12 pt-8 border-t border-stone-300">
+                <h3 class="text-sm font-bold text-stone-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                     <i data-lucide="database" class="w-4 h-4"></i> データ管理
                 </h3>
                 <div class="grid grid-cols-2 gap-3">
-                    <button class="bg-white border border-stone-300 text-stone-600 p-4 rounded-xl text-base font-bold flex flex-col items-center gap-2 shadow-sm active:bg-stone-50" onclick="app.exportDataJSON()">
-                        <i data-lucide="download" class="w-6 h-6 text-stone-500"></i> 一括保存(JSON)
+                    <button class="bg-white border-2 border-stone-300 text-stone-700 p-4 rounded-xl text-base font-bold flex flex-col items-center gap-2 shadow-sm active:bg-stone-100" onclick="app.exportDataJSON()">
+                        <i data-lucide="download" class="w-6 h-6 text-stone-600"></i> 一括保存(JSON)
                     </button>
-                    <label class="bg-white border border-stone-300 text-stone-600 p-4 rounded-xl text-base font-bold flex flex-col items-center gap-2 shadow-sm active:bg-stone-50 cursor-pointer text-center">
-                        <i data-lucide="upload" class="w-6 h-6 text-stone-500"></i> データ復元
+                    <label class="bg-white border-2 border-stone-300 text-stone-700 p-4 rounded-xl text-base font-bold flex flex-col items-center gap-2 shadow-sm active:bg-stone-100 cursor-pointer text-center">
+                        <i data-lucide="upload" class="w-6 h-6 text-stone-600"></i> データ復元
                         <input type="file" accept=".json" onchange="app.importDataJSON(event)">
                     </label>
-                    <button class="bg-white border border-stone-300 text-stone-600 p-4 rounded-xl text-base font-bold flex flex-col items-center gap-2 shadow-sm active:bg-stone-50 col-span-2" onclick="app.exportLogsCSV()">
-                        <i data-lucide="file-spreadsheet" class="w-6 h-6 text-stone-500"></i> 記録をExcel用に出力(CSV)
+                    <button class="bg-white border-2 border-stone-300 text-stone-700 p-4 rounded-xl text-base font-bold flex flex-col items-center gap-2 shadow-sm active:bg-stone-100 col-span-2" onclick="app.exportLogsCSV()">
+                        <i data-lucide="file-spreadsheet" class="w-6 h-6 text-stone-600"></i> 記録をExcel用に出力(CSV)
                     </button>
                 </div>
             </div>
@@ -133,7 +148,7 @@
         <div id="detailPage" class="page">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-stone-200 mb-4">
                 <div class="flex justify-between items-start mb-2">
-                    <h2 id="detailName" class="text-2xl font-bold text-stone-800 leading-tight"></h2>
+                    <h2 id="detailName" class="text-2xl font-bold text-stone-900 leading-tight"></h2>
                     <div class="flex gap-2">
                         <button class="text-stone-500 bg-stone-100 p-2 rounded-lg" onclick="app.editCurrentPerson()">
                             <i data-lucide="edit-2" class="w-5 h-5"></i>
@@ -143,30 +158,30 @@
                         </button>
                     </div>
                 </div>
-                <p id="detailCompany" class="text-base text-stone-500 mb-4"></p>
-                <div class="bg-stone-50 p-4 rounded-lg border border-stone-100">
-                    <p class="text-xs text-stone-400 font-bold mb-1 uppercase">基本メモ</p>
-                    <p id="detailMemo" class="text-lg text-stone-700 whitespace-pre-wrap"></p>
+                <p id="detailCompany" class="text-base text-stone-600 font-bold mb-4"></p>
+                <div class="bg-stone-50 p-4 rounded-lg border border-stone-200">
+                    <p class="text-xs text-stone-500 font-bold mb-1 uppercase">基本メモ</p>
+                    <p id="detailMemo" class="text-lg text-stone-900 font-bold whitespace-pre-wrap leading-relaxed"></p>
                 </div>
             </div>
 
             <!-- 新規記録入力 -->
-            <div class="bg-stone-200/50 p-4 rounded-xl border border-stone-200 mb-6">
-                <textarea id="logText" class="w-full border border-stone-300 rounded-lg p-4 text-lg focus:ring-2 focus:ring-amber-800/30 outline-none mb-3 min-h-[120px]" placeholder="内容を入力..."></textarea>
+            <div class="bg-stone-200 p-4 rounded-xl border border-stone-300 mb-6">
+                <textarea id="logText" class="w-full border-2 border-stone-300 rounded-lg p-4 text-lg font-bold focus:border-amber-800 outline-none mb-3 min-h-[120px]" placeholder="内容を入力..."></textarea>
                 <div class="flex items-center justify-between">
                     <div>
                         <label for="logFile" class="file-upload-btn shadow-sm">
                             <i data-lucide="paperclip" class="w-5 h-5 mr-2"></i> 写真
                         </label>
                         <input type="file" id="logFile" accept="image/*" onchange="app.handleFileSelect(event)">
-                        <div id="selectedFileName" class="text-xs text-stone-400 mt-1 truncate max-w-[120px]"></div>
+                        <div id="selectedFileName" class="text-xs text-stone-500 mt-1 font-bold truncate max-w-[120px]"></div>
                     </div>
-                    <button class="bg-app-accent text-white px-8 py-3 rounded-lg font-bold text-lg shadow-sm" onclick="app.addLog()">記録する</button>
+                    <button class="bg-app-accent text-white px-8 py-3 rounded-lg font-bold text-lg shadow-sm active:scale-95 transition" onclick="app.addLog()">記録する</button>
                 </div>
             </div>
 
             <!-- タイムライン -->
-            <div class="relative pl-5 border-l-2 border-stone-200 ml-4 space-y-8" id="timelineList"></div>
+            <div class="relative pl-5 border-l-4 border-stone-300 ml-4 space-y-8" id="timelineList"></div>
         </div>
     </main>
 
@@ -174,22 +189,22 @@
     <div id="personModal" class="fixed inset-0 bg-stone-900/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
             <div class="p-4 border-b border-stone-100 flex justify-between items-center bg-stone-50">
-                <h3 class="font-bold text-stone-800 text-lg" id="modalTitle">担当者の追加</h3>
+                <h3 class="font-bold text-stone-900 text-lg" id="modalTitle">担当者の追加</h3>
                 <button class="text-stone-400 p-1" onclick="app.closeModal('personModal')"><i data-lucide="x"></i></button>
             </div>
             <div class="p-5 space-y-4">
                 <input type="hidden" id="personId">
                 <div>
-                    <label class="block text-sm font-bold text-stone-400 mb-1">お名前 *</label>
-                    <input type="text" id="personName" class="w-full border border-stone-300 rounded-lg p-4 text-lg outline-none focus:ring-2 focus:ring-amber-800/30" placeholder="例: 山田 太郎">
+                    <label class="block text-sm font-bold text-stone-500 mb-1">お名前 *</label>
+                    <input type="text" id="personName" class="w-full border-2 border-stone-300 rounded-lg p-4 text-lg font-bold outline-none focus:border-amber-800" placeholder="例: 山田 太郎">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-stone-400 mb-1">会社名</label>
-                    <input type="text" id="personCompany" class="w-full border border-stone-300 rounded-lg p-4 text-lg outline-none focus:ring-2 focus:ring-amber-800/30" placeholder="例: 株式会社ABC">
+                    <label class="block text-sm font-bold text-stone-500 mb-1">会社名</label>
+                    <input type="text" id="personCompany" class="w-full border-2 border-stone-300 rounded-lg p-4 text-lg font-bold outline-none focus:border-amber-800" placeholder="例: 株式会社ABC">
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-stone-400 mb-1">基本メモ</label>
-                    <textarea id="personMemo" class="w-full border border-stone-300 rounded-lg p-4 text-lg outline-none focus:ring-2 focus:ring-amber-800/30 h-32" placeholder="特徴など"></textarea>
+                    <label class="block text-sm font-bold text-stone-500 mb-1">基本メモ</label>
+                    <textarea id="personMemo" class="w-full border-2 border-stone-300 rounded-lg p-4 text-lg font-bold outline-none focus:border-amber-800 h-32" placeholder="特徴など"></textarea>
                 </div>
                 <button class="w-full bg-app-primary text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition" onclick="app.savePerson()">保存する</button>
             </div>
@@ -200,24 +215,26 @@
     <div id="editLogModal" class="fixed inset-0 bg-stone-900/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
             <div class="p-4 border-b border-stone-100 flex justify-between items-center bg-stone-50">
-                <h3 class="font-bold text-stone-800 text-lg">記録を修正</h3>
+                <h3 class="font-bold text-stone-900 text-lg">記録を修正</h3>
                 <button class="text-stone-400 p-1" onclick="app.closeModal('editLogModal')"><i data-lucide="x"></i></button>
             </div>
             <div class="p-5 space-y-4">
                 <input type="hidden" id="editLogId">
                 <div>
-                    <label class="block text-sm font-bold text-stone-400 mb-1">内容</label>
-                    <textarea id="editLogText" class="w-full border border-stone-300 rounded-lg p-4 text-lg outline-none focus:ring-2 focus:ring-amber-800/30 h-48" placeholder="内容を入力..."></textarea>
+                    <label class="block text-sm font-bold text-stone-500 mb-1">内容</label>
+                    <textarea id="editLogText" class="w-full border-2 border-stone-300 rounded-lg p-4 text-lg font-bold outline-none focus:border-amber-800 h-48" placeholder="内容を入力..."></textarea>
                 </div>
                 <button class="w-full bg-app-accent text-white py-4 rounded-xl font-bold text-lg shadow-md active:scale-95 transition" onclick="app.saveEditedLog()">上書き保存</button>
             </div>
         </div>
     </div>
 
-    <!-- モーダル: 画像拡大 -->
-    <div id="imageModal" class="fixed inset-0 bg-stone-950/98 z-[200] hidden flex flex-col p-4">
-        <div class="flex justify-end p-2">
-            <button class="text-white bg-white/20 p-3 rounded-full" onclick="app.closeModal('imageModal')"><i data-lucide="x"></i></button>
+    <!-- モーダル: 画像拡大（強化版） -->
+    <div id="zoomOverlay">
+        <div class="flex justify-end p-4">
+            <button class="text-white bg-white/20 p-3 rounded-full active:bg-white/40" onclick="app.closeModal('zoomOverlay')">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
         </div>
         <div id="zoomContainer">
             <img id="fullSizeImage" src="">
@@ -227,23 +244,22 @@
     <!-- 共通ダイアログ -->
     <div id="alertModal" class="fixed inset-0 bg-stone-900/60 z-[300] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center shadow-2xl">
-            <p id="alertMessage" class="text-stone-800 font-bold text-lg mb-6"></p>
+            <p id="alertMessage" class="text-stone-900 font-bold text-xl mb-6"></p>
             <button class="w-full bg-app-primary text-white py-3 rounded-lg font-bold text-lg" onclick="UI.closeAlert()">OK</button>
         </div>
     </div>
 
     <div id="confirmModal" class="fixed inset-0 bg-stone-900/60 z-[300] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center shadow-2xl">
-            <p id="confirmMessage" class="text-stone-800 font-bold text-lg mb-6"></p>
+            <p id="confirmMessage" class="text-stone-900 font-bold text-xl mb-6"></p>
             <div class="flex gap-3">
-                <button class="flex-1 bg-stone-200 text-stone-600 py-3 rounded-lg font-bold text-lg" onclick="UI.closeConfirm(false)">戻る</button>
+                <button class="flex-1 bg-stone-200 text-stone-700 py-3 rounded-lg font-bold text-lg" onclick="UI.closeConfirm(false)">戻る</button>
                 <button class="flex-1 bg-red-600 text-white py-3 rounded-lg font-bold text-lg" onclick="UI.closeConfirm(true)">削除</button>
             </div>
         </div>
     </div>
 
     <script>
-        // UI制御
         const UI = {
             confirmCallback: null,
             showAlert(msg) {
@@ -263,7 +279,6 @@
             }
         };
 
-        // データベース管理
         class DBManager {
             constructor() {
                 this.dbName = 'DeaiAppDB_V2';
@@ -341,7 +356,7 @@
                 this.selectedFile = null;
                 this.allPersonsCache = [];
                 this.init();
-                this.setupPinchZoom();
+                this.initEnhancedZoom();
             }
 
             async init() {
@@ -399,7 +414,7 @@
                 }
             }
 
-            closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+            closeModal(id) { document.getElementById(id).style.display = 'none'; document.getElementById(id).classList.add('hidden'); }
 
             async loadAllPersons() {
                 this.allPersonsCache = await this.db.getAllPersons();
@@ -419,14 +434,14 @@
                     emptyMsg.classList.add('hidden');
                     filtered.forEach(p => {
                         const card = document.createElement('div');
-                        card.className = 'bg-white p-5 rounded-xl shadow-sm border border-stone-200 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between';
+                        card.className = 'bg-white p-5 rounded-xl shadow-sm border-2 border-stone-200 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between';
                         card.onclick = () => this.showDetail(p.id);
                         card.innerHTML = `
                             <div>
-                                <div class="font-bold text-stone-800 text-lg">${p.name}</div>
-                                <div class="text-sm text-stone-400">${p.company || '-'}</div>
+                                <div class="font-bold text-stone-900 text-xl">${p.name}</div>
+                                <div class="text-base text-stone-600 font-bold">${p.company || '-'}</div>
                             </div>
-                            <i data-lucide="chevron-right" class="text-stone-300 w-6 h-6"></i>
+                            <i data-lucide="chevron-right" class="text-stone-400 w-6 h-6"></i>
                         `;
                         listEl.appendChild(card);
                     });
@@ -467,16 +482,11 @@
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
+                        let width = img.width, height = img.height;
                         const maxSize = 1280;
-                        if (width > height) {
-                            if (width > maxSize) { height *= maxSize / width; width = maxSize; }
-                        } else {
-                            if (height > maxSize) { width *= maxSize / height; height = maxSize; }
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
+                        if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                        else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                        canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         this.selectedFile = { name: file.name, type: 'image/jpeg', dataUrl: canvas.toDataURL('image/jpeg', 0.8) };
@@ -512,7 +522,9 @@
                 if (!log) return;
                 document.getElementById('editLogId').value = log.id;
                 document.getElementById('editLogText').value = log.text || '';
+                document.getElementById('editLogModal').style.display = 'flex';
                 document.getElementById('editLogModal').classList.remove('hidden');
+                lucide.createIcons();
             }
 
             async saveEditedLog() {
@@ -530,20 +542,20 @@
             async renderLogs() {
                 const timelineEl = document.getElementById('timelineList');
                 const logs = await this.db.getLogsByPersonId(this.currentPersonId);
-                timelineEl.innerHTML = logs.length ? '' : '<p class="text-stone-400 text-sm py-2 italic">記録なし</p>';
+                timelineEl.innerHTML = logs.length ? '' : '<p class="text-stone-500 text-base py-2 italic font-bold">記録なし</p>';
                 logs.forEach(log => {
                     const item = document.createElement('div');
-                    item.className = 'relative bg-white p-4 rounded-lg border border-stone-100 shadow-sm';
+                    item.className = 'relative bg-white p-5 rounded-lg border-2 border-stone-100 shadow-sm';
                     item.innerHTML = `
-                        <div class="absolute -left-[26px] mt-2 w-3 h-3 bg-stone-300 rounded-full border-2 border-stone-50"></div>
+                        <div class="absolute -left-[27px] mt-2 w-4 h-4 bg-stone-400 rounded-full border-4 border-stone-50"></div>
                         <div class="flex justify-between items-start mb-2">
-                            <span class="text-xs font-bold text-stone-400">${this.formatDate(log.createdAt)}</span>
+                            <span class="text-sm font-bold text-stone-500">${this.formatDate(log.createdAt)}</span>
                             <div class="flex gap-2">
-                                <button class="text-stone-300 hover:text-app-accent p-1" onclick="app.openEditLogModal('${log.id}')"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                                <button class="text-stone-300 hover:text-red-400 p-1" onclick="app.deleteLog('${log.id}')"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                <button class="text-stone-400 hover:text-app-accent p-1" onclick="app.openEditLogModal('${log.id}')"><i data-lucide="edit-3" class="w-5 h-5"></i></button>
+                                <button class="text-stone-400 hover:text-red-500 p-1" onclick="app.deleteLog('${log.id}')"><i data-lucide="trash" class="w-5 h-5"></i></button>
                             </div>
                         </div>
-                        ${log.text ? `<p class="text-lg text-stone-700 whitespace-pre-wrap leading-relaxed">${log.text}</p>` : ''}
+                        ${log.text ? `<p class="text-xl text-stone-900 font-bold whitespace-pre-wrap leading-relaxed">${log.text}</p>` : ''}
                         ${log.file ? `<img src="${log.file.dataUrl}" class="attachment-preview shadow-inner cursor-pointer" onclick="app.zoomImage('${log.file.dataUrl}')">` : ''}
                     `;
                     timelineEl.appendChild(item);
@@ -558,27 +570,77 @@
                 });
             }
 
-            setupPinchZoom() {
+            // 強化版ズーム＆パン機能
+            initEnhancedZoom() {
+                const overlay = document.getElementById('zoomOverlay');
                 const container = document.getElementById('zoomContainer');
                 const img = document.getElementById('fullSizeImage');
+                
                 let scale = 1, lastScale = 1, startDist = 0;
-                container.addEventListener('touchstart', (e) => { if (e.touches.length === 2) startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); });
-                container.addEventListener('touchmove', (e) => { if (e.touches.length === 2) { const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); scale = Math.min(Math.max(1, lastScale * (dist / startDist)), 4); img.style.transform = `scale(${scale})`; } });
-                container.addEventListener('touchend', () => { lastScale = scale; });
+                let posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
+                let startX = 0, startY = 0;
+                let isDragging = false;
+
+                const updateTransform = () => {
+                    img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+                };
+
+                container.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        isDragging = true;
+                        startX = e.touches[0].pageX - lastPosX;
+                        startY = e.touches[0].pageY - lastPosY;
+                    } else if (e.touches.length === 2) {
+                        isDragging = false;
+                        startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    }
+                });
+
+                container.addEventListener('touchmove', (e) => {
+                    if (isDragging && e.touches.length === 1 && scale > 1) {
+                        posX = e.touches[0].pageX - startX;
+                        posY = e.touches[0].pageY - startY;
+                        updateTransform();
+                    } else if (e.touches.length === 2) {
+                        const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                        scale = Math.min(Math.max(1, lastScale * (dist / startDist)), 8);
+                        updateTransform();
+                    }
+                });
+
+                container.addEventListener('touchend', () => {
+                    lastScale = scale;
+                    lastPosX = posX;
+                    lastPosY = posY;
+                    isDragging = false;
+                    if (scale <= 1.05) { // ほぼ等倍に戻ったら位置もリセット
+                        scale = 1; posX = 0; posY = 0;
+                        lastScale = 1; lastPosX = 0; lastPosY = 0;
+                        updateTransform();
+                    }
+                });
+
+                this.resetZoom = () => {
+                    scale = 1; posX = 0; posY = 0;
+                    lastScale = 1; lastPosX = 0; lastPosY = 0;
+                    updateTransform();
+                };
             }
 
             zoomImage(url) {
+                const overlay = document.getElementById('zoomOverlay');
                 const img = document.getElementById('fullSizeImage');
-                img.style.transform = 'scale(1)';
+                this.resetZoom();
                 img.src = url;
-                document.getElementById('imageModal').classList.remove('hidden');
+                overlay.style.display = 'flex';
+                lucide.createIcons();
             }
 
             async exportDataJSON() {
                 const data = await this.db.getFullBackup();
                 const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `deai-app-backup-${new Date().getTime()}.json`; a.click();
+                const a = document.createElement('a'); a.href = url; a.download = `deai-app-backup-${Date.now()}.json`; a.click();
             }
 
             async importDataJSON(e) {
